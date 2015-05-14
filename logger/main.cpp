@@ -25,7 +25,8 @@ int main(int argc, char** argv)
 	openni::Status rc = openni::STATUS_OK;
 
 	openni::Device device;
-	openni::VideoStream depth, color;
+	openni::VideoStream depth;
+	openni::Recorder recorder;
 	const char* deviceURI = openni::ANY_DEVICE;
 	if (argc > 1)
 	{
@@ -33,15 +34,25 @@ int main(int argc, char** argv)
 	}
 
 	rc = openni::OpenNI::initialize();
+	if (rc != openni::STATUS_OK)
+	{
+		fprintf(stderr, "logger: After initialization:\n%s\n", openni::OpenNI::getExtendedError());
+		return 1;
+	}
 
-	printf("After initialization:\n%s\n", openni::OpenNI::getExtendedError());
+	rc = recorder.create("log.oni"); // FIXME use a real argument parser
+	if (rc != openni::STATUS_OK)
+	{
+		fprintf(stderr, "logger: Failed to create recorder:\n%s\n", openni::OpenNI::getExtendedError());
+		return 2;
+	}
 
 	rc = device.open(deviceURI);
 	if (rc != openni::STATUS_OK)
 	{
-		printf("SimpleViewer: Device open failed:\n%s\n", openni::OpenNI::getExtendedError());
+		fprintf(stderr, "logger: Device open failed:\n%s\n", openni::OpenNI::getExtendedError());
 		openni::OpenNI::shutdown();
-		return 1;
+		return 3;
 	}
 
 	rc = depth.create(device, openni::SENSOR_DEPTH);
@@ -50,37 +61,43 @@ int main(int argc, char** argv)
 		rc = depth.start();
 		if (rc != openni::STATUS_OK)
 		{
-			printf("SimpleViewer: Couldn't start depth stream:\n%s\n", openni::OpenNI::getExtendedError());
+			fprintf(stderr, "logger: Couldn't start depth stream:\n%s\n", openni::OpenNI::getExtendedError());
 			depth.destroy();
 		}
 	}
 	else
 	{
-		printf("SimpleViewer: Couldn't find depth stream:\n%s\n", openni::OpenNI::getExtendedError());
+		fprintf(stderr, "logger: Couldn't find depth stream:\n%s\n", openni::OpenNI::getExtendedError());
 	}
 
 	if (!depth.isValid())
 	{
-		printf("SimpleViewer: No valid streams. Exiting\n");
+		fprintf(stderr, "logger: No valid streams. Exiting\n");
 		openni::OpenNI::shutdown();
-		return 2;
+		return 4;
 	}
+
+	recorder.attach(depth);
+	recorder.start();
 
 	int idx;
 	openni::VideoFrameRef frame;
 	for (int i = 0; i < 10; ++i)
 	{
-		printf("Waiting for frame %d\n", i);
+		printf("logger: Waiting for frame %d\n", i);
 		if (rc != openni::STATUS_OK)
 		{
-			printf("SimpleViewer: Failed to wait for stream. Exiting\n");
-			return 1;
+			fprintf(stderr, "logger: Failed to wait for stream. Exiting\n");
+			return 5;
 		}
 		depth.readFrame(&frame);
-		printf("Received frame %d\n", i);
+		printf("logger: Received frame %d (%d x %d px)\n", i, frame.getHeight(), frame.getWidth());
 	}
 
+	recorder.stop();
+	recorder.destroy();
 	depth.stop();
 	device.close();
 	openni::OpenNI::shutdown();
+	return 0;
 }
