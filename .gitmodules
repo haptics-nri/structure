@@ -1,3 +1,6 @@
 [submodule "openni2"]
 	path = openni2
 	url = git@github.com:haptics-nri/openni2
+[submodule "tools_openni2"]
+	path = tools_openni2
+	url = git@github.com:haptics-nri/tools_openni2
