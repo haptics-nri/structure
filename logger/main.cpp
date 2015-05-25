@@ -107,14 +107,22 @@ int main(int argc, char** argv)
 		fprintf(stderr, "logger: Got frame\n");
 		buf = (openni::DepthPixel*)frame.getData();
 		fprintf(stderr, "logger: Opening file\n");
-		file.open((std::string("log") + (char)(i+'0') + ".png").c_str(), std::ios::out | std::ios::binary);
+		file.open((std::string("log") + (char)(i+'0') + ".csv").c_str(), std::ios::out | std::ios::binary);
 		if (!file.good())
 		{
 			fprintf(stderr, "logger: failed to open PNG file for writing. Exiting\n");
 			return 5;
 		}
 		fprintf(stderr, "logger: Writing image\n");
-		pixel_generator(frame).write(file);
+		for (int y = 0; y < frame.getHeight(); ++y)
+		{
+			for (int x = 0; x < frame.getWidth(); ++x)
+			{
+				file << ((openni::DepthPixel*)frame.getData())[y*frame.getWidth() + x];
+				if (x < frame.getWidth()-1) file << ",";
+			}
+			file << "\n";
+		}
 		file.close();
 
 		printf("logger: Received frame %d (%d x %d px)\n", i, frame.getHeight(), frame.getWidth());
