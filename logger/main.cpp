@@ -19,6 +19,31 @@
 *                                                                            *
 *****************************************************************************/
 #include <OpenNI.h>
+#include <string>
+#include <fstream>
+#include <png++/png.hpp>
+
+class pixel_generator
+    : public png::generator< png::gray_pixel_1, pixel_generator >
+{
+public:
+    pixel_generator(openni::VideoFrameRef& frame)
+        : png::generator< png::gray_pixel_1, pixel_generator >(frame.getWidth(), frame.getHeight()),
+	  m_frame(frame),
+	  m_buf((openni::DepthPixel*)frame.getData())
+    {
+    	printf("VideoFrameRef w=%d h=%d s=%d ds=%d\n", frame.getWidth(), frame.getHeight(), frame.getStrideInBytes(), frame.getDataSize());
+    }
+
+    png::byte* get_next_row(size_t pos)
+    {
+	return reinterpret_cast<png::byte*>(&m_buf[pos*m_frame.getWidth()]);
+    }
+
+private:
+	openni::VideoFrameRef& m_frame;
+	openni::DepthPixel *m_buf;
+};
 
 int main(int argc, char** argv)
 {
@@ -26,7 +51,6 @@ int main(int argc, char** argv)
 
 	openni::Device device;
 	openni::VideoStream depth;
-	openni::Recorder recorder;
 	const char* deviceURI = openni::ANY_DEVICE;
 	if (argc > 1)
 	{
@@ -38,13 +62,6 @@ int main(int argc, char** argv)
 	{
 		fprintf(stderr, "logger: After initialization:\n%s\n", openni::OpenNI::getExtendedError());
 		return 1;
-	}
-
-	rc = recorder.create("log.oni"); // FIXME use a real argument parser
-	if (rc != openni::STATUS_OK)
-	{
-		fprintf(stderr, "logger: Failed to create recorder:\n%s\n", openni::OpenNI::getExtendedError());
-		return 2;
 	}
 
 	rc = device.open(deviceURI);
@@ -77,25 +94,32 @@ int main(int argc, char** argv)
 		return 4;
 	}
 
-	recorder.attach(depth);
-	recorder.start();
-
 	int idx;
 	openni::VideoFrameRef frame;
+	openni::DepthPixel* buf;
+	std::ofstream file;
+	png::image<png::gray_pixel> image;
 	for (int i = 0; i < 10; ++i)
 	{
-		printf("logger: Waiting for frame %d\n", i);
-		if (rc != openni::STATUS_OK)
+		fprintf(stderr, "logger: Waiting for frame %d\n", i);
+		
+		depth.readFrame(&frame);
+		fprintf(stderr, "logger: Got frame\n");
+		buf = (openni::DepthPixel*)frame.getData();
+		fprintf(stderr, "logger: Opening file\n");
+		file.open((std::string("log") + (char)(i+'0') + ".png").c_str(), std::ios::out | std::ios::binary);
+		if (!file.good())
 		{
-			fprintf(stderr, "logger: Failed to wait for stream. Exiting\n");
+			fprintf(stderr, "logger: failed to open PNG file for writing. Exiting\n");
 			return 5;
 		}
-		depth.readFrame(&frame);
+		fprintf(stderr, "logger: Writing image\n");
+		pixel_generator(frame).write(file);
+		file.close();
+
 		printf("logger: Received frame %d (%d x %d px)\n", i, frame.getHeight(), frame.getWidth());
 	}
 
-	recorder.stop();
-	recorder.destroy();
 	depth.stop();
 	device.close();
 	openni::OpenNI::shutdown();
