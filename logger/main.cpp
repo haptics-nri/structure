@@ -21,9 +21,22 @@
 #include <OpenNI.h>
 #include <string>
 #include <fstream>
+#include <csignal>
+
+bool g_running = true;
+
+void signal_handler(int signal)
+{
+	fprintf(stderr, "Signal received! Cleaning up.\n");
+	g_running = false;
+}
 
 int main(int argc, char** argv)
 {
+	signal(SIGABRT, signal_handler);
+	signal(SIGINT,  signal_handler);
+	signal(SIGTERM, signal_handler);
+
 	openni::Status rc = openni::STATUS_OK;
 
 	openni::Device device;
@@ -75,9 +88,9 @@ int main(int argc, char** argv)
 	openni::VideoFrameRef frame;
 	openni::DepthPixel* buf;
 	std::ofstream file;
-	for (int i = 0; i < 10; ++i)
+	for (unsigned long i = 0; g_running; ++i)
 	{
-		fprintf(stderr, "logger: Waiting for frame %d\n", i);
+		fprintf(stderr, "logger: Waiting for frame %ld\n", i);
 		
 		depth.readFrame(&frame);
 		fprintf(stderr, "logger: Got frame\n");
@@ -101,9 +114,10 @@ int main(int argc, char** argv)
 		}
 		file.close();
 
-		printf("logger: Received frame %d (%d x %d px)\n", i, frame.getHeight(), frame.getWidth());
+		fprintf(stderr, "logger: Received frame %ld (%d x %d px)\n", i, frame.getHeight(), frame.getWidth());
 	}
 
+	fprintf(stderr, "Bye!\n");
 	depth.stop();
 	device.close();
 	openni::OpenNI::shutdown();
