@@ -88,6 +88,8 @@ int main(int argc, char** argv)
 	openni::VideoFrameRef frame;
 	openni::DepthPixel* buf;
 	std::ofstream file;
+	char fname[50];
+	timespec now;
 	for (unsigned long i = 0; g_running; ++i)
 	{
 		fprintf(stderr, "logger: Waiting for frame %ld\n", i);
@@ -96,11 +98,17 @@ int main(int argc, char** argv)
 		fprintf(stderr, "logger: Got frame\n");
 		buf = (openni::DepthPixel*)frame.getData();
 		fprintf(stderr, "logger: Opening file\n");
-		file.open((std::string("log") + (char)(i+'0') + ".csv").c_str(), std::ios::out);
+		clock_gettime(CLOCK_BOOTTIME, &now);
+		if (snprintf(fname, sizeof fname, "structure-%ld.%09ld.csv", now.tv_sec, now.tv_nsec) >= sizeof fname)
+		{
+			fprintf(stderr, "logger: generated filename would be too long. Exiting\n");
+			return 5;
+		}
+		file.open(fname, std::ios::out);
 		if (!file.good())
 		{
 			fprintf(stderr, "logger: failed to open PNG file for writing. Exiting\n");
-			return 5;
+			return 6;
 		}
 		fprintf(stderr, "logger: Writing image\n");
 		for (int y = 0; y < frame.getHeight(); ++y)
