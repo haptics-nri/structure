@@ -21,29 +21,6 @@
 #include <OpenNI.h>
 #include <string>
 #include <fstream>
-#include <png++/png.hpp>
-
-class pixel_generator
-    : public png::generator< png::gray_pixel_1, pixel_generator >
-{
-public:
-    pixel_generator(openni::VideoFrameRef& frame)
-        : png::generator< png::gray_pixel_1, pixel_generator >(frame.getWidth(), frame.getHeight()),
-	  m_frame(frame),
-	  m_buf((openni::DepthPixel*)frame.getData())
-    {
-    	printf("VideoFrameRef w=%d h=%d s=%d ds=%d\n", frame.getWidth(), frame.getHeight(), frame.getStrideInBytes(), frame.getDataSize());
-    }
-
-    png::byte* get_next_row(size_t pos)
-    {
-	return reinterpret_cast<png::byte*>(&m_buf[pos*m_frame.getWidth()]);
-    }
-
-private:
-	openni::VideoFrameRef& m_frame;
-	openni::DepthPixel *m_buf;
-};
 
 int main(int argc, char** argv)
 {
@@ -98,7 +75,6 @@ int main(int argc, char** argv)
 	openni::VideoFrameRef frame;
 	openni::DepthPixel* buf;
 	std::ofstream file;
-	png::image<png::gray_pixel> image;
 	for (int i = 0; i < 10; ++i)
 	{
 		fprintf(stderr, "logger: Waiting for frame %d\n", i);
